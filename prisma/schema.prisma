@@ -1,0 +1,55 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Product {
+  id         String      @id @default(cuid())
+  name       String      @unique
+  category   String
+  price      Int
+  costPrice  Int         @default(0)
+  stockCount Int         @default(0)
+
+  items      OrderItem[]
+
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+}
+
+model Order {
+  id          String      @id @default(cuid())
+
+  subtotal    Int         @default(0)
+  taxAmount   Int         @default(0)
+  discount    Int         @default(0)
+  totalAmount Int         @default(0)
+
+  paymentType String      @default("CASH") // CASH | UPI | CARD
+  status      String      @default("PLACED") // PLACED | COMPLETED | CANCELLED
+  orderType   String      @default("TAKEAWAY") // DINE_IN | TAKEAWAY
+
+  items       OrderItem[]
+
+  createdAt   DateTime    @default(now())
+}
+
+model OrderItem {
+  id        String  @id @default(cuid())
+  orderId   String
+  productId String
+
+  quantity  Int
+  price     Int     // stored in paise (historical price)
+
+  notes     String? // "no onion", "extra cheese"
+
+  order     Order   @relation(fields: [orderId], references: [id])
+  product   Product @relation(fields: [productId], references: [id])
+
+  createdAt DateTime @default(now())
+}
