@@ -2,16 +2,21 @@ import { NextResponse } from "next/server";
 import Groq from "groq-sdk";
 import { z } from "zod";
 
-const groq = new Groq({
-  apiKey: process.env.GROQ_API_KEY,
-});
-
 const ReqSchema = z.object({
   report: z.any(),
 });
 
 export async function POST(req: Request) {
   try {
+    if (!process.env.GROQ_API_KEY) {
+      return NextResponse.json(
+        { error: "Missing GROQ_API_KEY in environment variables" },
+        { status: 500 }
+      );
+    }
+
+    const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+
     const body = await req.json();
     const parsed = ReqSchema.safeParse(body);
 
@@ -22,13 +27,9 @@ export async function POST(req: Request) {
     const { report } = parsed.data;
 
     const prompt = `
-You are an analytics assistant for a cafe owner.
-
-RULES:
-- Use ONLY the numbers present in the report JSON.
-- Do NOT invent sales numbers.
-- Keep output short and WhatsApp-friendly.
-- Give: (1) Today summary, (2) top items insight, (3) 2 actionable suggestions.
+You are a cafe business assistant.
+Use ONLY the numbers in the report JSON.
+Give WhatsApp-friendly summary + 2 suggestions.
 
 REPORT JSON:
 ${JSON.stringify(report)}
@@ -40,13 +41,14 @@ ${JSON.stringify(report)}
       messages: [{ role: "user", content: prompt }],
     });
 
-    const summary = response.choices?.[0]?.message?.content ?? "No summary generated";
+    const summary =
+      response.choices?.[0]?.message?.content ?? "No summary generated";
 
     return NextResponse.json({ summary });
-  } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : "AI summary failed";
+  } catch (e: unknown) {
+    const errorMessage = e instanceof Error ? e.message : "AI summary failed";
     return NextResponse.json(
-      { error: message },
+      { error: errorMessage },
       { status: 500 }
     );
   }
